@@ -25,13 +25,18 @@ const GithubProvider = ({children}) => {
         if(response) {
             setGithubUser(response.data)
             const {login,followers_url} = response.data
-            // repos
-            axios(`${rootUrl}/users/${login}/repos?per_page=100`).then(response => setRepos(response.data))
-            // followers
-            axios(`${followers_url}?per_page=100`).then(response => setFollowers(response.data))
-            // https://api.github.com/users/john-smilga/repos?per_page=100
-            // followers
-            // https://api.github.com/users/john-smilga/followers
+
+
+           await Promise.allSettled([axios(`${rootUrl}/users/${login}/repos?per_page=100`),axios(`${followers_url}?per_page=100`)]).then((results)=> {
+            const [repos,followers] = results
+            const status = 'fulfilled';
+            if(repos.status === status) {
+                setRepos(repos.value.data)
+            }
+            if(followers.status === status) {
+                setFollowers(followers.value.data)
+            }
+           }).catch(err => console.log(err))
         }
         else {
             toggleError(true,'no user matches your search')
@@ -40,25 +45,21 @@ const GithubProvider = ({children}) => {
         setIsLoading(false)
 
     } 
-   
-   
-    // check rate
- const checkRequests = () => {
+
+// check rate
+const checkRequests = () => {
 axios(`${rootUrl}/rate_limit`).then(({data})=> {
-console.log(data)
-
-let {rate:{remaining:reqsRemaining}} = data
-
-console.log(reqsRemaining);
-setRequests(reqsRemaining)
 // FIX LATER!
+console.log(data)
+let {rate:{remaining:reqsRemaining}} = data
+console.log(reqsRemaining);
+// setRequests(reqsRemaining)
 
 if(reqsRemaining === 0) {
     toggleError(true,"sorry, you've exceeded your hourly limit")
 }
 }).catch((err)=> console.log(err))
 }
-
 
 
 function toggleError(show = false, msg = '') {
